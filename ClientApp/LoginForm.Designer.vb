@@ -35,6 +35,7 @@ Partial Class LoginForm
         ' 
         ' GroupBox1
         ' 
+        GroupBox1.BackColor = Color.Orange
         GroupBox1.Controls.Add(statusLabel)
         GroupBox1.Controls.Add(btnRegister)
         GroupBox1.Controls.Add(btnLogin)
@@ -42,10 +43,10 @@ Partial Class LoginForm
         GroupBox1.Controls.Add(emailLabel)
         GroupBox1.Controls.Add(txtPassword)
         GroupBox1.Controls.Add(txtEmail)
-        GroupBox1.Location = New Point(185, 64)
-        GroupBox1.Margin = New Padding(4, 4, 4, 4)
+        GroupBox1.Location = New Point(153, 77)
+        GroupBox1.Margin = New Padding(4)
         GroupBox1.Name = "GroupBox1"
-        GroupBox1.Padding = New Padding(4, 4, 4, 4)
+        GroupBox1.Padding = New Padding(4)
         GroupBox1.Size = New Size(474, 451)
         GroupBox1.TabIndex = 0
         GroupBox1.TabStop = False
@@ -64,7 +65,7 @@ Partial Class LoginForm
         ' btnRegister
         ' 
         btnRegister.Location = New Point(279, 333)
-        btnRegister.Margin = New Padding(4, 4, 4, 4)
+        btnRegister.Margin = New Padding(4)
         btnRegister.Name = "btnRegister"
         btnRegister.Size = New Size(96, 32)
         btnRegister.TabIndex = 5
@@ -74,7 +75,7 @@ Partial Class LoginForm
         ' btnLogin
         ' 
         btnLogin.Location = New Point(123, 333)
-        btnLogin.Margin = New Padding(4, 4, 4, 4)
+        btnLogin.Margin = New Padding(4)
         btnLogin.Name = "btnLogin"
         btnLogin.Size = New Size(96, 32)
         btnLogin.TabIndex = 4
@@ -104,7 +105,7 @@ Partial Class LoginForm
         ' txtPassword
         ' 
         txtPassword.Location = New Point(123, 199)
-        txtPassword.Margin = New Padding(4, 4, 4, 4)
+        txtPassword.Margin = New Padding(4)
         txtPassword.Name = "txtPassword"
         txtPassword.PasswordChar = "*"c
         txtPassword.Size = New Size(251, 29)
@@ -114,7 +115,7 @@ Partial Class LoginForm
         ' txtEmail
         ' 
         txtEmail.Location = New Point(123, 111)
-        txtEmail.Margin = New Padding(4, 4, 4, 4)
+        txtEmail.Margin = New Padding(4)
         txtEmail.Name = "txtEmail"
         txtEmail.Size = New Size(251, 29)
         txtEmail.TabIndex = 0
@@ -123,11 +124,13 @@ Partial Class LoginForm
         ' 
         AutoScaleDimensions = New SizeF(9F, 21F)
         AutoScaleMode = AutoScaleMode.Font
+        BackColor = Color.DodgerBlue
         ClientSize = New Size(809, 617)
         Controls.Add(GroupBox1)
         Font = New Font("Segoe UI Semibold", 12F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
-        Margin = New Padding(4, 4, 4, 4)
+        Margin = New Padding(4)
         Name = "LoginForm"
+        StartPosition = FormStartPosition.CenterScreen
         Text = "LoginForm"
         GroupBox1.ResumeLayout(False)
         GroupBox1.PerformLayout()

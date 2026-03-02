@@ -64,12 +64,12 @@ Partial Class ConnectForm
         ' 
         ' txtServerIP
         ' 
-        txtServerIP.Font = New Font("Segoe UI Semibold", 12.0F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
+        txtServerIP.Font = New Font("Segoe UI Semibold", 12F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
         txtServerIP.Location = New Point(74, 52)
         txtServerIP.Name = "txtServerIP"
         txtServerIP.Size = New Size(160, 29)
         txtServerIP.TabIndex = 3
-        txtServerIP.Text = "192.168.13.186"
+        txtServerIP.Text = "192.168.92.186"
         ' 
         ' txtPort
         ' 
@@ -82,7 +82,7 @@ Partial Class ConnectForm
         ' 
         ' btnConnect
         ' 
-        btnConnect.Font = New Font("Segoe UI Semibold", 9.0F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
+        btnConnect.Font = New Font("Segoe UI Semibold", 9F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
         btnConnect.Location = New Point(6, 106)
         btnConnect.Name = "btnConnect"
         btnConnect.Size = New Size(68, 23)

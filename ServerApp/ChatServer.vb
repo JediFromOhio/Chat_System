@@ -5,6 +5,10 @@ Imports System.Text.Json
 Imports System.Collections.Concurrent
 Imports System.IO
 Imports System.Threading
+Imports BCrypt.Net
+Imports System.Net.Mail
+Imports Microsoft.Data.SqlClient
+
 
 Public Class ChatServer
 
@@ -13,7 +17,7 @@ Public Class ChatServer
     Private _cts As CancellationTokenSource
 
     Private ReadOnly _clients As New ConcurrentDictionary(Of String, StreamWriter)()
-
+    Private ReadOnly connStr As String = "Server=.\SQLEXPRESS;Database=ChatDB;Trusted_Connection=True;TrustServerCertificate=True;"
     Private ReadOnly _jsonOptions As New JsonSerializerOptions With {
         .PropertyNamingPolicy = JsonNamingPolicy.CamelCase
     }
@@ -22,13 +26,85 @@ Public Class ChatServer
         _port = port
     End Sub
 
+    Private Function HashPassword(password As String) As String
+        Return BCrypt.Net.BCrypt.HashPassword(password)
+    End Function
+
+    Private Function VerifyPassword(password As String, hash As String) As Boolean
+        Return BCrypt.Net.BCrypt.Verify(password, hash)
+    End Function
+
+    Private Function GenerateOTP() As String
+        Dim rand As New Random()
+        Return rand.Next(100000, 999999).ToString("D6")
+    End Function
+
+    Private Async Function SendErrorAsync(writer As StreamWriter, errorMsg As String) As Task
+        Dim replyJson = JsonSerializer.Serialize(New With {.type = "error", .errorMsg = errorMsg}, _jsonOptions)
+        Await writer.WriteLineAsync(replyJson)
+    End Function
+
+
+    Private Async Function SendOTPAsync(email As String, otp As String) As Task
+        Using smtp As New SmtpClient("smtp.gmail.com") With {
+            .Port = 587,
+            .EnableSsl = True,
+            .Credentials = New Net.NetworkCredential("osundahunsiolamide@gmail.com", "qsbcsdmkywzczcrn")
+            }
+            Dim mail As New MailMessage("osundahunsiolamide@gmail.com", email, "Chat App OTP", $"Your OTP: {otp} (Valid for 5 mins)")
+            Await smtp.SendMailAsync(mail)
+        End Using
+    End Function
+
+    Private Function GetUser(email As String) As (Exists As Boolean, Hash As String)
+        Using conn As New SqlConnection(connStr)
+            conn.Open()
+            Using cmd = New SqlCommand("SELECT PasswordHash, IsActive FROM Users WHERE Email=@email;", conn)
+                cmd.Parameters.AddWithValue("@email", email)
+                Using reader = cmd.ExecuteReader()
+                    If reader.Read() AndAlso CBool(reader("IsActive")) Then
+                        Return (True, reader("PasswordHash").ToString())
+                    End If
+                End Using
+            End Using
+        End Using
+        Return (False, "")
+    End Function
+
+    Private Sub StoreMessage(fromEmail As String, toEmail As String, text As String)
+        Using conn As New SqlConnection(connStr)
+            conn.Open()
+            Using cmd = New SqlCommand("INSERT INTO Messages (FromEmail, ToEmail, [Text]) VALUES (@from, @to, @text)", conn)
+                cmd.Parameters.AddWithValue("@from", fromEmail)
+                cmd.Parameters.AddWithValue("@to", toEmail)
+                cmd.Parameters.AddWithValue("@text", text)
+                cmd.ExecuteNonQuery()
+            End Using
+        End Using
+    End Sub
+
+    Private Function GetQueuedMessages(email As String) As List(Of (From As String, Text As String))
+        Dim queued As New List(Of (String, String))
+        Using conn As New SqlConnection(connStr)
+            conn.Open()
+            Using cmd = New SqlCommand("UPDATE Messages SET Delivered=1 WHERE ToEmail=@email AND Delivered=0; SELECT FromEmail, [Text] FROM Messages WHERE ToEmail=@email AND Delivered=1 ORDER BY Timestamp", conn)
+                cmd.Parameters.AddWithValue("@email", email)
+                Using reader = cmd.ExecuteReader()
+                    While reader.Read()
+                        queued.Add((reader("FromEmail").ToString(), reader("Text").ToString()))
+                    End While
+                End Using
+            End Using
+        End Using
+        Return queued
+    End Function
     Public Async Function StartAsync() As Task
         _cts = New CancellationTokenSource()
         _listener = New TcpListener(IPAddress.Any, _port)
 
         Try
             _listener.Start()
-            Console.WriteLine("=== CHAT SERVER v2.0 (JSON) ===")
+            Console.WriteLine("=== CHAT SERVER v3.0 (EMAILS) ===")
             Console.WriteLine($"Listening on 0.0.0.0:{_port}")
             Console.WriteLine("Press Ctrl+C to stop")
             Console.WriteLine("===============================")
@@ -117,31 +193,74 @@ Public Class ChatServer
                             If msg Is Nothing OrElse String.IsNullOrWhiteSpace(msg.Type) Then Continue While
 
                             Select Case msg.Type.ToLowerInvariant()
+                                Case "register"
+                                    If msg.Data Is Nothing OrElse Not msg.Data.ContainsKey("email") OrElse Not msg.Data.ContainsKey("password") Then
+                                        Await SendErrorAsync(writer, "Missing email/password")
+                                        Continue While
+                                    End If
+                                    email = msg.Data("email").GetString().Trim().ToLowerInvariant()
+                                    Dim password = msg.Data("password").GetString()
+                                    Using conn As New SqlConnection(connStr)
+                                        conn.Open()
+                                        Using checkCmd = New SqlCommand("IF EXISTS(SELECT 1 FROM Users WHERE Email=@email) SELECT 1 ELSE SELECT 0", conn)
+                                            checkCmd.Parameters.AddWithValue("@email", email)
+                                            If CInt(checkCmd.ExecuteScalar()) = 1 Then
+                                                Await SendErrorAsync(writer, "Email exists")
+                                                Continue While
+                                            End If
+                                        End Using
 
-                                Case "identify"
-                                    If msg.Data Is Nothing OrElse Not msg.Data.ContainsKey("email") Then
-                                        Await writer.WriteLineAsync(JsonSerializer.Serialize(New With {
-                                            .type = "error",
-                                            .errorMsg = "Missing data.email"
-                                        }, _jsonOptions))
+                                        Dim otp = GenerateOTP()
+                                        Using regCmd = New SqlCommand("INSERT INTO Users (Email, PasswordHash, OTP) VALUES (@email, @hash, @otp)", conn)
+                                            regCmd.Parameters.AddWithValue("@email", email)
+                                            regCmd.Parameters.AddWithValue("@hash", HashPassword(password))
+                                            regCmd.Parameters.AddWithValue("@otp", otp)
+                                            regCmd.ExecuteNonQuery()
+                                        End Using
+
+                                        Await SendOTPAsync(email, otp)
+                                        Await writer.WriteLineAsync(JsonSerializer.Serialize(New With {.type = "otp_sent"}))
+
+                                    End Using
+
+                                Case "verify_otp"
+                                    Dim inputOtp = msg.Data("otp").GetString()
+                                    Using conn As New SqlConnection(connStr)
+                                        conn.Open()
+                                        Using cmd = New SqlCommand("UPDATE Users SET IsActive=1, OTP=NULL WHERE OTP=@otp; SELECT @@ROWCOUNT", conn)
+                                            cmd.Parameters.AddWithValue("@otp", inputOtp)
+                                            If CInt(cmd.ExecuteScalar()) = 1 Then
+                                                Await writer.WriteLineAsync(JsonSerializer.Serialize(New With {.type = "activated"}, _jsonOptions))
+                                            Else
+                                                Await SendErrorAsync(writer, "Invalid OTP")
+                                            End If
+                                        End Using
+
+                                    End Using
+
+
+                                Case "login"
+                                    If msg.Data Is Nothing OrElse Not msg.Data.ContainsKey("email") OrElse Not msg.Data.ContainsKey("password") Then
+                                        Await SendErrorAsync(writer, "Missing email/password")
                                         Continue While
                                     End If
 
-                                    email = msg.Data("email").GetString()
-                                    If email Is Nothing Then email = ""
-                                    email = email.Trim().ToLowerInvariant()
+                                    email = msg.Data("email").GetString().Trim().ToLowerInvariant()
+                                    Dim password = msg.Data("password").GetString()
+                                    Dim userInfo = GetUser(email)
 
-                                    If email = "" Then
-                                        Await writer.WriteLineAsync(JsonSerializer.Serialize(New With {.type = "error", .errorMsg = "Empty email"}, _jsonOptions))
+                                    If Not userInfo.Exists OrElse Not VerifyPassword(password, userInfo.Hash) Then
+                                        Await SendErrorAsync(writer, "Invalid Credentials")
                                         Continue While
                                     End If
 
+                                    ' Success: add to clients 
                                     If Not _clients.TryAdd(email, writer) Then
-                                        Await writer.WriteLineAsync(JsonSerializer.Serialize(New With {.type = "error", .errorMsg = "User already connected"}, _jsonOptions))
+                                        Await SendErrorAsync(writer, "Already Connected")
                                         Exit While
                                     End If
 
-                                    Console.WriteLine($"✓ IDENTIFIED {email} @ {endPoint}")
+                                    Console.WriteLine($"LOGIN: {email} @ {endPoint}")
 
                                     Await writer.WriteLineAsync(JsonSerializer.Serialize(New With {
                                         .type = "identified",
@@ -150,27 +269,29 @@ Public Class ChatServer
 
                                     BroadcastPresence()
 
+                                    'Deliver queued
+                                    Dim queued = GetQueuedMessages(email)
+                                    For Each q In queued
+                                        Await writer.WriteLineAsync(JsonSerializer.Serialize(New With {
+                                                .type = "deliver",
+                                                .data = New With {
+                                                    .from = q.From,
+                                                    .text = q.Text
+                                                }
+                                            }, _jsonOptions))
+
+                                    Next
+
+
+
 
                                 Case "msg"
-                                    If email Is Nothing Then
-                                        Await writer.WriteLineAsync(JsonSerializer.Serialize(New With {.type = "error", .errorMsg = "Identify first"}, _jsonOptions))
-                                        Continue While
-                                    End If
 
-                                    If msg.Data Is Nothing OrElse Not msg.Data.ContainsKey("to") OrElse Not msg.Data.ContainsKey("text") Then
-                                        Await writer.WriteLineAsync(JsonSerializer.Serialize(New With {.type = "error", .errorMsg = "Missing data.to or data.text"}, _jsonOptions))
-                                        Continue While
-                                    End If
-
-                                    Dim toEmail = msg.Data("to").GetString()
-                                    If toEmail Is Nothing Then toEmail = ""
-                                    toEmail = toEmail.Trim().ToLowerInvariant()
-
+                                    Dim toEmail = msg.Data("to").GetString().Trim().ToLowerInvariant()
                                     Dim text = msg.Data("text").GetString()
-                                    If text Is Nothing Then text = ""
-
                                     Dim targetWriter As StreamWriter = Nothing
                                     If _clients.TryGetValue(toEmail, targetWriter) Then
+                                        'Online: direct deliver
                                         Await targetWriter.WriteLineAsync(JsonSerializer.Serialize(New With {
                                             .type = "deliver",
                                             .data = New With {.from = email, .text = text}
@@ -181,6 +302,7 @@ Public Class ChatServer
                                             .data = New With {.to = toEmail}
                                         }, _jsonOptions))
                                     Else
+                                        StoreMessage(email, toEmail, text)
                                         Await writer.WriteLineAsync(JsonSerializer.Serialize(New With {
                                             .type = "sent",
                                             .errorMsg = "User offline/not found"

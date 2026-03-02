@@ -6,7 +6,7 @@
         AddHandler chatClient1.Connected, AddressOf OnConnected
         AddHandler chatClient1.ErrorOccurred, AddressOf OnError
 
-        txtServerIP.Text = "192.168.13.186"  ' YOUR SERVER IP
+        txtServerIP.Text = "192.168.92.186"  ' YOUR SERVER IP
         txtPort.Text = "5000"
         lblStatus.Text = "Status: Not connected"
     End Sub

@@ -18,7 +18,7 @@ Public Class ChatClient
     Public Event Disconnected(sender As Object, e As EventArgs)
     Public Event ErrorOccurred(sender As Object, errorMsg As String)
 
-    Public Property ServerIP As String = "192.168.13.186"
+    Public Property ServerIP As String = "192.168.92.186"
     Public Property ServerPort As Integer = 5000
 
     Public ReadOnly Property IsConnected As Boolean

@@ -18,29 +18,45 @@ Public Class LoginForm
     End Sub
 
     Private Async Sub btnLogin_Click(sender As Object, e As EventArgs) Handles btnLogin.Click
-        Await IdentifyAsync()
+        Await LoginAsync()
     End Sub
 
     Private Async Sub btnRegister_Click(sender As Object, e As EventArgs) Handles btnRegister.Click
-        ' Dummy register = same identify for now
-        Await IdentifyAsync()
+        Dim registerForm As New RegisterForm(_client)
+        registerForm.ShowDialog()
     End Sub
 
-    Private Async Function IdentifyAsync() As Task
+    Private Async Function RegisterAsync() As Task
         Dim email = txtEmail.Text.Trim().ToLowerInvariant()
-        If String.IsNullOrWhiteSpace(email) Then
-            statusLabel.Text = "Status: Email is required"
+        Dim pwd = txtPassword.Text
+        If String.IsNullOrWhiteSpace(email) OrElse String.IsNullOrWhiteSpace(pwd) Then
+            statusLabel.Text = "Status: Email/Password required"
             Return
         End If
 
-        statusLabel.Text = "Status: Logging in..."
+        statusLabel.Text = "Status: Registering..."
 
-        Dim msg As New ChatClient.NetMessage With {.Type = "identify"}
+        Dim msg As New ChatClient.NetMessage With {.Type = "register"}
         msg.Data("email") = JsonDocument.Parse("""" & email.Replace("""", "") & """").RootElement
+        msg.Data("password") = JsonDocument.Parse("""" & pwd.Replace("""", "") & """").RootElement
 
         Await _client.SendAsync(msg)
     End Function
 
+    Private Async Function LoginAsync() As Task
+        Dim email = txtEmail.Text.Trim().ToLowerInvariant()
+        Dim pwd = txtPassword.Text
+        If String.IsNullOrWhiteSpace(email) OrElse String.IsNullOrWhiteSpace(pwd) Then
+            statusLabel.Text = "Status: Email/password required"
+            Return
+        End If
+
+        statusLabel.Text = "Status: Logging in..."
+        Dim msg As New ChatClient.NetMessage With {.Type = "login"}
+        msg.Data("email") = JsonDocument.Parse($"""{email.Replace("""""", "")}""").RootElement
+        msg.Data("password") = JsonDocument.Parse($"""{pwd.Replace("""""", "")}""").RootElement
+        Await _client.SendAsync(msg)
+    End Function
     Private Sub OnMessageReceived(sender As Object, msg As ChatClient.NetMessage)
         If InvokeRequired Then
             Invoke(Sub() OnMessageReceived(sender, msg))
@@ -48,23 +64,24 @@ Public Class LoginForm
         End If
 
         Dim t = (If(msg.Type, "")).ToLowerInvariant()
-
-        If t = "identified" Then
-            Dim email = ""
-            If msg.Data IsNot Nothing AndAlso msg.Data.ContainsKey("email") Then
-                email = msg.Data("email").GetString()
-            End If
-
-            statusLabel.Text = "Status: Logged in as " & email
-
-            ' Open MainChatForm and close this one
-            Dim f As New MainChatForm(_client, email)
-            f.Show()
-
-            Me.Hide()
-        ElseIf t = "error" Then
-            statusLabel.Text = "Status: " & msg.ErrorMsg
+        Dim email = ""
+        If msg.Data IsNot Nothing AndAlso msg.Data.ContainsKey("email") Then
+            email = msg.Data("email").GetString()
         End If
+
+        Select Case t
+            Case "otp_sent"
+                statusLabel.Text = "Status: Check your email for OTP"
+            Case "activated"
+                statusLabel.Text = "Status: Account activated, now login "
+            Case "identified"
+                ' Open MainChatForm and close this one
+                Dim f As New MainChatForm(_client, email)
+                f.Show()
+                Me.Hide()
+            Case "error"
+                statusLabel.Text = "Status: " & msg.ErrorMsg
+        End Select
     End Sub
 
     Private Sub OnError(sender As Object, errorMsg As String)
@@ -76,4 +93,7 @@ Public Class LoginForm
         statusLabel.Text = "Status: Error - " & errorMsg
     End Sub
 
+    Private Sub GroupBox1_Enter(sender As Object, e As EventArgs) Handles GroupBox1.Enter
+
+    End Sub
 End Class
