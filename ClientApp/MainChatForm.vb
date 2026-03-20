@@ -1,4 +1,5 @@
-﻿Imports System.Text.Json
+﻿Imports System.Net.Sockets
+Imports System.Text.Json
 
 Public Class MainChatForm
 
@@ -19,6 +20,9 @@ Public Class MainChatForm
     ' *** FIX: prevents infinite loop when rendering users ***
     Private _isRenderingUsers As Boolean = False
 
+
+
+
     Public Sub New(client As ChatClient, meEmail As String)
         InitializeComponent()
         _client = client
@@ -35,8 +39,14 @@ Public Class MainChatForm
 
         firstUsers.IntegralHeight = False
         firstChat.IntegralHeight = False
+        RefreshTheme()
     End Sub
-
+    Public Sub RefreshTheme()
+        ThemeHelper.ApplyThemeToForm(Me, My.Settings.DarkThemeEnabled)
+        ' Apply to ListBoxes too
+        firstUsers.BackColor = If(My.Settings.DarkThemeEnabled, Color.FromArgb(45, 45, 48), Color.White)
+        firstChat.BackColor = firstUsers.BackColor
+    End Sub
     Private Sub RenderUsers()
         _isRenderingUsers = True
         Try
@@ -229,4 +239,11 @@ Public Class MainChatForm
         firstChat.Items.Add("[SYSTEM] Disconnected from server.")
     End Sub
 
+    Private Sub SettingsButton_Click(sender As Object, e As EventArgs) Handles SettingsButton.Click
+        Dim settings As New SettingsForm(client:=_client, meEmail:=_me)
+        settings.Owner = Me
+        If settings.ShowDialog() = DialogResult.Abort Then
+            RefreshTheme() ' Re-apply after settings changes
+        End If
+    End Sub
 End Class

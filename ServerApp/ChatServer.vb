@@ -222,6 +222,22 @@ Public Class ChatServer
                                         Await writer.WriteLineAsync(JsonSerializer.Serialize(New With {.type = "otp_sent"}))
 
                                     End Using
+                                Case "profileupdate"
+                                    Dim bio = msg.Data("bio").GetString()
+                                    Dim avatar = msg.Data("avatar").GetString()
+                                    Dim status = msg.Data("status").GetString()
+
+                                    Using conn As New SqlConnection(connStr)
+                                        conn.Open()
+                                        Using cmd As New SqlCommand("UPDATE Users SET Bio=@bio, Avatar=@avatar, Status=@status WHERE Email=@email", conn)
+                                            cmd.Parameters.AddWithValue("@bio", bio)
+                                            cmd.Parameters.AddWithValue("@avatar", avatar)
+                                            cmd.Parameters.AddWithValue("@status", status)
+                                            cmd.Parameters.AddWithValue("@email", email)
+                                            cmd.ExecuteNonQuery()
+                                        End Using
+                                    End Using
+                                    Await writer.WriteLineAsync("""{""type"":""profileupdated""}")
 
                                 Case "verify_otp"
                                     Dim inputOtp = msg.Data("otp").GetString()

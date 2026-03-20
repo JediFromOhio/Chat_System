@@ -23,6 +23,7 @@ Partial Class MainChatForm
     <System.Diagnostics.DebuggerStepThrough()> _
     Private Sub InitializeComponent()
         SplitContainer1 = New SplitContainer()
+        SettingsButton = New Button()
         firstUsers = New ListBox()
         labelOnlineUsers = New Label()
         firstChat = New ListBox()
@@ -46,6 +47,7 @@ Partial Class MainChatForm
         ' 
         ' SplitContainer1.Panel1
         ' 
+        SplitContainer1.Panel1.Controls.Add(SettingsButton)
         SplitContainer1.Panel1.Controls.Add(firstUsers)
         SplitContainer1.Panel1.Controls.Add(labelOnlineUsers)
         ' 
@@ -58,6 +60,15 @@ Partial Class MainChatForm
         SplitContainer1.SplitterDistance = 342
         SplitContainer1.SplitterWidth = 5
         SplitContainer1.TabIndex = 0
+        ' 
+        ' SettingsButton
+        ' 
+        SettingsButton.Location = New Point(3, 565)
+        SettingsButton.Name = "SettingsButton"
+        SettingsButton.Size = New Size(89, 53)
+        SettingsButton.TabIndex = 1
+        SettingsButton.Text = "Settings"
+        SettingsButton.UseVisualStyleBackColor = True
         ' 
         ' firstUsers
         ' 
@@ -162,4 +173,5 @@ Partial Class MainChatForm
     Friend WithEvents firstUsers As ListBox
     Friend WithEvents labelOnlineUsers As Label
     Friend WithEvents firstChat As ListBox
+    Friend WithEvents SettingsButton As Button
 End Class

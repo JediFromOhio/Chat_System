@@ -83,7 +83,7 @@ Partial Class ConnectForm
         ' btnConnect
         ' 
         btnConnect.Font = New Font("Segoe UI Semibold", 9F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
-        btnConnect.Location = New Point(6, 106)
+        btnConnect.Location = New Point(74, 111)
         btnConnect.Name = "btnConnect"
         btnConnect.Size = New Size(68, 23)
         btnConnect.TabIndex = 5
@@ -111,11 +111,12 @@ Partial Class ConnectForm
         ClientSize = New Size(629, 441)
         Controls.Add(GroupBox1)
         Controls.Add(lblStatus)
+        Font = New Font("Segoe UI", 9F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
         FormBorderStyle = FormBorderStyle.FixedDialog
         MinimizeBox = False
         Name = "ConnectForm"
         StartPosition = FormStartPosition.CenterScreen
-        Text = "Connect"
+        Text = "Connect to Server"
         GroupBox1.ResumeLayout(False)
         GroupBox1.PerformLayout()
         ResumeLayout(False)

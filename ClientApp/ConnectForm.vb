@@ -56,19 +56,5 @@
         lblStatus.Text = $"Error: {errorMsg}"
     End Sub
 
-    Private Sub lblTitle_Click(sender As Object, e As EventArgs) Handles lblTitle.Click
 
-    End Sub
-
-    Private Sub GroupBox1_Enter(sender As Object, e As EventArgs) Handles GroupBox1.Enter
-
-    End Sub
-
-    Private Sub txtServerIP_TextChanged(sender As Object, e As EventArgs) Handles txtServerIP.TextChanged
-
-    End Sub
-
-    Private Sub lblServerIp_Click(sender As Object, e As EventArgs) Handles lblServerIp.Click
-
-    End Sub
 End Class
