@@ -8,6 +8,7 @@ Imports System.Threading
 Imports BCrypt.Net
 Imports System.Net.Mail
 Imports Microsoft.Data.SqlClient
+Imports System.Linq.Expressions
 
 
 Public Class ChatServer
@@ -237,15 +238,38 @@ Public Class ChatServer
                                             cmd.ExecuteNonQuery()
                                         End Using
                                     End Using
-                                    Await writer.WriteLineAsync("""{""type"":""profileupdated""}")
+                                    ' Fetch updated profile from database
+                                    Dim updatedProfile As New Dictionary(Of String, Object)
+                                    Using conn As New SqlConnection(connStr)
+                                        conn.Open()
+                                        Using cmd As New SqlCommand("SELECT Bio, Avatar, Status FROM Users WHERE Email=@email", conn)
+                                            cmd.Parameters.AddWithValue("@email", email)
+                                            Using profileReader = cmd.ExecuteReader()
+                                                If profileReader.Read() Then
+                                                    updatedProfile("bio") = profileReader("Bio")?.ToString()
+                                                    updatedProfile("avatar") = profileReader("Avatar")?.ToString()
+                                                    updatedProfile("status") = profileReader("Status")?.ToString()
+                                                End If
+                                            End Using
+                                        End Using
+                                    End Using
+
+                                    ' Send updated profile to client
+                                    Await writer.WriteLineAsync(JsonSerializer.Serialize(New With {
+                                        .type = "profileupdated",
+                                        .data = updatedProfile
+                                    }, _jsonOptions))
+
+
 
                                 Case "verify_otp"
                                     Dim inputOtp = msg.Data("otp").GetString()
                                     Using conn As New SqlConnection(connStr)
                                         conn.Open()
-                                        Using cmd = New SqlCommand("UPDATE Users SET IsActive=1, OTP=NULL WHERE OTP=@otp; SELECT @@ROWCOUNT", conn)
+                                        Using cmd = New SqlCommand("UPDATE Users SET IsActive=1, OTP=NULL WHERE OTP=@otp; SELECT @@ROWCOUNT;", conn)
                                             cmd.Parameters.AddWithValue("@otp", inputOtp)
-                                            If CInt(cmd.ExecuteScalar()) = 1 Then
+                                            Dim rowsAffected As Integer = CInt(cmd.ExecuteScalar)
+                                            If rowsAffected = 1 Then
                                                 Await writer.WriteLineAsync(JsonSerializer.Serialize(New With {.type = "activated"}, _jsonOptions))
                                             Else
                                                 Await SendErrorAsync(writer, "Invalid OTP")
@@ -297,9 +321,41 @@ Public Class ChatServer
                                             }, _jsonOptions))
 
                                     Next
+                                    ' Fetch user profile from database
+                                    Dim profile As New Dictionary(Of String, Object)
+                                    Using conn As New SqlConnection(connStr)
+                                        conn.Open()
+                                        Using cmd As New SqlCommand("SELECT Bio, Avatar, Status, Theme FROM Users WHERE Email=@email", conn)
+                                            cmd.Parameters.AddWithValue("@email", email)
+                                            Using profileReader = cmd.ExecuteReader()
+                                                If profileReader.Read() Then
+                                                    profile("bio") = profileReader("Bio")?.ToString()
+                                                    profile("avatar") = profileReader("Avatar")?.ToString()
+                                                    profile("status") = profileReader("Status")?.ToString()
+                                                    profile("theme") = profileReader("Theme")?.ToString()
+                                                End If
+                                            End Using
+                                        End Using
+                                    End Using
+
+                                    ' Send profile to client
+                                    Await writer.WriteLineAsync(JsonSerializer.Serialize(New With {
+                                        .type = "profile",
+                                        .data = profile
+                                    }, _jsonOptions))
 
 
-
+                                Case "updatetheme"
+                                    Dim theme = msg.Data("theme").GetString()
+                                    Using conn As New SqlConnection(connStr)
+                                        conn.Open()
+                                        Using cmd As New SqlCommand("UPDATE Users SET Theme=@theme WHERE Email=@email", conn)
+                                            cmd.Parameters.AddWithValue("@theme", theme)
+                                            cmd.Parameters.AddWithValue("@email", email)
+                                            cmd.ExecuteNonQuery()
+                                        End Using
+                                    End Using
+                                    Await writer.WriteLineAsync(JsonSerializer.Serialize(New With {.type = "themeupdated"}, _jsonOptions))
 
                                 Case "msg"
 
@@ -321,9 +377,57 @@ Public Class ChatServer
                                         StoreMessage(email, toEmail, text)
                                         Await writer.WriteLineAsync(JsonSerializer.Serialize(New With {
                                             .type = "sent",
-                                            .errorMsg = "User offline/not found"
+                                            .data = New With {.to = toEmail, .offline = True}
                                         }, _jsonOptions))
+
                                     End If
+
+                                Case "forgotpassword"
+                                    email = msg.Data("email").GetString().Trim().ToLowerInvariant()
+                                    If Not GetUser(email).Exists Then
+                                        Await SendErrorAsync(writer, "Email not found")
+                                        Continue While
+                                    End If
+                                    Dim resetOtp = GenerateOTP()
+                                    Using conn As New SqlConnection(connStr)
+                                        conn.Open()
+                                        Using cmd As New SqlCommand("UPDATE Users SET ResetOTP=@otp WHERE Email=@email", conn)
+                                            cmd.Parameters.AddWithValue("@otp", resetOtp)
+                                            cmd.Parameters.AddWithValue("@email", email)
+                                            cmd.ExecuteNonQuery()
+                                        End Using
+                                    End Using
+                                    Await SendOTPAsync(email, resetOtp)
+                                        Await writer.WriteLineAsync(JsonSerializer.Serialize(New With {.type = "otpsent"}, _jsonOptions))
+
+                                Case "resetpassword"
+                                    Dim newPwd = msg.Data("password").GetString()
+                                    Using conn As New SqlConnection(connStr)
+                                        conn.Open()
+                                        Using cmd As New SqlCommand("UPDATE Users SET PasswordHash=@hash WHERE Email=@email", conn)
+                                            cmd.Parameters.AddWithValue("@hash", HashPassword(newPwd))
+                                            cmd.Parameters.AddWithValue("@email", email)
+                                            cmd.ExecuteNonQuery()
+                                        End Using
+                                    End Using
+                                    Await writer.WriteLineAsync(JsonSerializer.Serialize(New With {.type = "passwordreset"}, _jsonOptions))
+
+                                Case "verifyresetotp"
+                                    Dim inputOtp = msg.Data("otp").GetString()
+                                    Using conn As New SqlConnection(connStr)
+                                        conn.Open()
+                                        Using cmd As New SqlCommand("UPDATE Users SET ResetOTP=NULL WHERE ResetOTP=@otp; SELECT @@ROWCOUNT;", conn)
+                                            cmd.Parameters.AddWithValue("@otp", inputOtp)
+                                            cmd.Parameters.AddWithValue("@email", email)
+                                            Dim rowsAffected As Integer = CInt(cmd.ExecuteScalar())
+                                            Console.WriteLine($"VerifyResetOTP: input = '{inputOtp}' rows={rowsAffected}")
+                                            If rowsAffected = 1 Then
+                                                Await writer.WriteLineAsync(JsonSerializer.Serialize(New With {.type = "resetverified"}, _jsonOptions))
+                                            Else
+                                                Await SendErrorAsync(writer, "Invalid OTP")
+                                            End If
+                                        End Using
+                                    End Using
 
                                 Case Else
                                     Await writer.WriteLineAsync(JsonSerializer.Serialize(New With {.type = "error", .errorMsg = "Unknown type"}, _jsonOptions))

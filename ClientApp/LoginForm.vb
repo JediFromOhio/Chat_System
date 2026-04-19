@@ -18,6 +18,11 @@ Public Class LoginForm
     End Sub
 
     Private Async Sub btnLogin_Click(sender As Object, e As EventArgs) Handles btnLogin.Click
+
+        If Not _client.IsConnected Then
+            Await _client.ConnectAsync()
+        End If
+
         Await LoginAsync()
     End Sub
 
@@ -95,5 +100,10 @@ Public Class LoginForm
 
     Private Sub GroupBox1_Enter(sender As Object, e As EventArgs) Handles GroupBox1.Enter
 
+    End Sub
+
+    Private Sub ForgotPasswordButton_Click(sender As Object, e As EventArgs) Handles ForgotPasswordButton.Click
+        Dim forgotForm As New ForgotPasswordForm(_client)
+        forgotForm.ShowDialog()
     End Sub
 End Class

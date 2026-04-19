@@ -210,6 +210,15 @@ Public Class MainChatForm
                     RenderUsers()
                 End If
 
+            Case "profile"
+                If msg.Data.ContainsKey("theme") Then
+                    Dim themeStr = msg.Data("theme").GetString()
+                    Dim isDark = (themeStr?.ToLower() = "dark")
+                    ThemeHelper.ApplyThemeToForm(Me, isDark)
+                    RefreshTheme()
+                End If
+
+
             Case "sent"
                 If Not String.IsNullOrWhiteSpace(msg.ErrorMsg) Then
                     firstChat.Items.Add("[SEND] Failed: " & msg.ErrorMsg)

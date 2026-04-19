@@ -18,8 +18,10 @@ Public Class ChatClient
     Public Event Disconnected(sender As Object, e As EventArgs)
     Public Event ErrorOccurred(sender As Object, errorMsg As String)
 
-    Public Property ServerIP As String = "192.168.92.186"
-    Public Property ServerPort As Integer = 5000
+    Public Property ServerIP As String = If(String.IsNullOrEmpty(My.Settings.ServerIP), "192.168.253.186", My.Settings.ServerIP)
+
+
+    Public Property ServerPort As Integer = If(My.Settings.ServerPort = 0, 5000, My.Settings.ServerPort)
 
     Public ReadOnly Property IsConnected As Boolean
         Get

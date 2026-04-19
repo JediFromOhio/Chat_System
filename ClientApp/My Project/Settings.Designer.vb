@@ -89,6 +89,30 @@ Namespace My
                 Me("FontSizeIndex") = value
             End Set
         End Property
+        
+        <Global.System.Configuration.UserScopedSettingAttribute(),  _
+         Global.System.Diagnostics.DebuggerNonUserCodeAttribute(),  _
+         Global.System.Configuration.DefaultSettingValueAttribute("192.168.92.186")>  _
+        Public Property ServerIP() As String
+            Get
+                Return CType(Me("ServerIP"),String)
+            End Get
+            Set
+                Me("ServerIP") = value
+            End Set
+        End Property
+        
+        <Global.System.Configuration.UserScopedSettingAttribute(),  _
+         Global.System.Diagnostics.DebuggerNonUserCodeAttribute(),  _
+         Global.System.Configuration.DefaultSettingValueAttribute("5000")>  _
+        Public Property ServerPort() As Integer
+            Get
+                Return CType(Me("ServerPort"),Integer)
+            End Get
+            Set
+                Me("ServerPort") = value
+            End Set
+        End Property
     End Class
 End Namespace
 

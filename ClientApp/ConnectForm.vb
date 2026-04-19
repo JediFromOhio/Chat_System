@@ -6,18 +6,23 @@
         AddHandler chatClient1.Connected, AddressOf OnConnected
         AddHandler chatClient1.ErrorOccurred, AddressOf OnError
 
-        txtServerIP.Text = "192.168.92.186"  ' YOUR SERVER IP
-        txtPort.Text = "5000"
+        txtServerIP.Text = My.Settings.ServerIP  ' YOUR SERVER IP
+        txtPort.Text = My.Settings.ServerPort.ToString()
         lblStatus.Text = "Status: Not connected"
     End Sub
 
     Private Async Sub btnConnect_Click(sender As Object, e As EventArgs) Handles btnConnect.Click
         lblStatus.Text = "Status: Connecting..."
 
-        chatClient1.ServerIP = txtServerIP.Text
+        ' SAVE SETTINGS FIRST
+        My.Settings.ServerIP = txtServerIP.Text
+        My.Settings.ServerPort = CInt(txtPort.Text)
+        My.Settings.Save() ' CRITICAL - persists!
+
         Dim port As Integer
-        Integer.TryParse(txtPort.Text, port)
-        chatClient1.ServerPort = port
+        If Integer.TryParse(txtPort.Text, port) Then
+            chatClient1.ServerPort = port
+        End If
 
         Await chatClient1.ConnectAsync()
     End Sub
@@ -56,5 +61,7 @@
         lblStatus.Text = $"Error: {errorMsg}"
     End Sub
 
+    Private Sub txtServerIP_TextChanged(sender As Object, e As EventArgs) Handles txtServerIP.TextChanged
 
+    End Sub
 End Class

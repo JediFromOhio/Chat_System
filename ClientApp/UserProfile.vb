@@ -38,15 +38,23 @@ Public Class UserProfileForm
             MessageBox.Show("Bio max 500 chars")
             Return
         End If
+        Dim bioValue = If(String.IsNullOrEmpty(BioTextBox.Text), "", BioTextBox.Text)
+        Dim statusValue = If(String.IsNullOrEmpty(StatusCmbBox.Text), "", StatusCmbBox.Text)
 
-        Dim msg As New ChatClient.NetMessage With {.Type = "profileupdate"}
-        msg.Data("bio") = JsonDocument.Parse(JsonSerializer.Serialize(BioTextBox.Text)).RootElement
-        msg.Data("avatar") = JsonDocument.Parse(JsonSerializer.Serialize(_currentAvatarBase64)).RootElement
-        msg.Data("status") = JsonDocument.Parse(JsonSerializer.Serialize(StatusCmbBox.SelectedItem.ToString())).RootElement
+        Dim data As New Dictionary(Of String, JsonElement) From {
+            {"bio", JsonSerializer.SerializeToElement(bioValue)},
+            {"status", JsonSerializer.SerializeToElement(statusValue)}
+        }
+        If Not String.IsNullOrEmpty(_currentAvatarBase64) Then
+            data("avatar") = JsonSerializer.SerializeToElement(_currentAvatarBase64)
+        End If
 
-
+        Dim msg As New ChatClient.NetMessage With {
+        .Type = "profileupdate",
+        .Data = data
+        }
         Await _client.SendAsync(msg)
-        MessageBox.Show("Profile saved!")
+        MessageBox.Show("Profile updated!")
         Me.Close()
     End Sub
 
@@ -54,7 +62,8 @@ Public Class UserProfileForm
         Me.Close()
     End Sub
 
-    Private Sub UserProfileForm_Load(sender As Object, e As EventArgs) Handles MyBase.Load
-
+    Private Async Sub UserProfileForm_Load(sender As Object, e As EventArgs) Handles MyBase.Load
+        Dim msg As New ChatClient.NetMessage With {.Type = "profile"}
+        Await _client.SendAsync(msg)
     End Sub
 End Class

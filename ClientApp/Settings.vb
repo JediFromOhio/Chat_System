@@ -1,4 +1,6 @@
-﻿Public Class SettingsForm
+﻿Imports System.Text.Json
+
+Public Class SettingsForm
     Private ReadOnly client As ChatClient
     Private ReadOnly meEmail As String
 
@@ -18,6 +20,7 @@
         FontSizeCmbBox.Items.AddRange({"Small", "Medium", "Large"})
         FontSizeCmbBox.SelectedIndex = My.Settings.FontSizeIndex
 
+
         ' Preview theme on load
         ApplyCurrentTheme()
     End Sub
@@ -33,7 +36,7 @@
         profile.ShowDialog()
     End Sub
 
-    Private Sub SignOutButton_Click(sender As Object, e As EventArgs) Handles SignOutButton.Click
+    Private Async Sub SignOutButton_Click(sender As Object, e As EventArgs) Handles SignOutButton.Click
         SaveSettings() ' still saves on signout
         client.Disconnect()
 
@@ -41,7 +44,15 @@
         Dim mainForm As MainChatForm = TryCast(Me.Owner, MainChatForm)
         mainForm?.Close()
 
-        Dim loginForm As New LoginForm(client)
+
+        'Create new client for login
+        Dim newClient As New ChatClient With { ' Uses My.Settings defaults 
+            .ServerIP = My.Settings.ServerIP,
+            .ServerPort = My.Settings.ServerPort
+        }
+        Await newClient.ConnectAsync() ' Connect before loginform
+
+        Dim loginForm As New LoginForm(newClient)
         loginForm.Show()
 
         Me.DialogResult = DialogResult.Abort
@@ -98,9 +109,18 @@
         End Try
     End Sub
 
-    Private Sub SaveButton_Click(sender As Object, e As EventArgs) Handles SaveButton.Click
+    Private Async Sub SaveButton_Click(sender As Object, e As EventArgs) Handles SaveButton.Click
         SaveSettings() ' Save first
 
+        ' SAVE DB THEME (per-user!)
+        Dim themeValue = If(DarkThemeChkBox.Checked, "Dark", "Light")
+        Dim msg As New ChatClient.NetMessage With {
+        .Type = "updatetheme",
+        .Data = New Dictionary(Of String, JsonElement) From {
+            {"theme", JsonSerializer.SerializeToElement(themeValue)}
+        }
+    }
+        Await client.SendAsync(msg)
         ' Apply theme to MainChatForm immediately
 
         Dim mainForm As MainChatForm = TryCast(Me.Owner, MainChatForm)
