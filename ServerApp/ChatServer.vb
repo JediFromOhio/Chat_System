@@ -46,11 +46,7 @@ Public Class ChatServer
     End Function
 
 
-    Private Async Function SendOTPAsync(email As String, otp As String) As Task
-        Using smtp As New SmtpClient("smtp.gmail.com") With {
-            .Port = 587,
-            .EnableSsl = True,
-            .Credentials = New Net.NetworkCredential("osundahunsiolamide@gmail.com", "qsbcsdmkywzczcrn")
+    Private Async Function SendOTPAsync(email As String, otp As String) As 
             }
             Dim mail As New MailMessage("osundahunsiolamide@gmail.com", email, "Chat App OTP", $"Your OTP: {otp} (Valid for 5 mins)")
             Await smtp.SendMailAsync(mail)
